@@ -746,7 +746,7 @@ Resources:
                 RECORDINGS_PUBLIC_READ_ACL: "FALSE"
                 CONSOLE_LOG_TRANSCRIPT_FLAG: "TRUE"
                 LOGGING_LEVEL: "FINE"
-                SAVE_PARTIAL_TRANSCRIPTS: "TRUE"
+                SAVE_PARTIAL_TRANSCRIPTS: "FALSE"
  
         Code:
             S3Bucket: !Join ["-", [!FindInMap [FunctionMap, Configuration, S3Bucket], Ref: "AWS::Region"]]
