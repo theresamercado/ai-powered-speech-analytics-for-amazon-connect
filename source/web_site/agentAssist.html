@@ -37,7 +37,7 @@
     </script>
     <style>
         #ccpContainer {
-            width: 200px;
+            width: 250px;
             height: 570px;
             overflow: hidden;
             float: left;
@@ -647,8 +647,7 @@
                                   else{				  
                                   if (data.KeyPhrases){
                                   data.KeyPhrases.forEach(function(element){
-									  var action = getAgentAction(originalText, element.Text);
-									  var tmp = createKeyPhrasesSpanWithColors(element.Text, action);
+									  var tmp = createKeyPhrasesSpanWithColors(element.Text);
 									  txt = txt.replace(element.Text, tmp);
 									  
                                   });
@@ -773,7 +772,6 @@
 										  console.log(err, err.stack);
 									  else {
                                           if(endOfCall) {
-                                              updateContactAttributes(text, data);
                                               resetSentimentBar();
                                           } else {
                                               refreshSentimentBar(data);
@@ -785,66 +783,8 @@
 					} else if (endOfCall) {
                         resetSentimentBar();
                     }
-				}
+                }	
                 
-                 //UpdateContact Attributes with overall sentiment and transcript text
-				function updateContactAttributes (transcript, sentimentData){
-					try{						
-						const awsconnect = new AWS.Connect();
-						var attributes={};
-						var newSentiment = titleCase(sentimentData.Sentiment);
-						var sentimentScore = sentimentData.SentimentScore[newSentiment].toString(16);                        
-						attributes.sst = '';
-						attributes.sak  = '';
-						attributes.aid  = '';
-						attributes.transcriptLocation  = 'https://s3-' + getRegion() + '.amazonaws.com/' + getBucketName() + '/transcripts/' + contactID + ".txt" ;
-					    attributes.customerSentiment = newSentiment;
-					    attributes.customerSentimentScore = sentimentScore;
-					    var i = getInstanceId(); 
-					    var params = {
-					            Attributes: attributes,
-					            InitialContactId: contactID,
-					            InstanceId: i };
-					    awsconnect.updateContactAttributes(params, function (err, res) {
-					    	console.log("we are about to update the record");
-					        console.log(params);
-					    	if (err) {
-					    		console.log("Error updating contact attributes : ", err);
-					    	} else {
-					    		console.log("Updated contact attributes: ", JSON.stringify(res));
-					    	}
-				        });
-					}catch(e){
-						console.log('Error updating contact attributes : ', e);
-					}
-					console.log('Writing into S3');
-					writeTranscriptToS3(transcript);
-				}
-				
-				function writeTranscriptToS3(transcript){
-					try{
-					    var bucketName = getBucketName();
-					    var cId = contactID + ".txt";
-					    var S3=  new AWS.S3({params: {Bucket: bucketName + "/transcripts"}});
-					    var params = {
-					      Key: cId,
-					      ContentType:'text/plain',
-					      Body: transcript,
-					    };
-					    S3.upload(params, function (err, res) {               
-					        if(err)
-					            console.log("Error in uploading file on s3 due to ", err);
-					        else{    
-					            console.log("File successfully uploaded.--> ", contactId );
-					        }
-					    });
-					}catch(e){
-						console.log(e);
-					}
-					
-				}
-				
-
                 function titleCase(str) {
 	                return str.toLowerCase().replace(/\b(\w)/g, s => s.toUpperCase());
                     }
@@ -855,7 +795,7 @@
 
     <section id="section-main">
         <header>
-            <h1>AI Powered Speech Analytics for Amazon Connect</h1>
+            <h1>Customer Sentiment</h1>
         </header>
         <form name="contactDetails" id="contactDetails">
             <div>
@@ -890,28 +830,6 @@
                 <div>Real-time Customer Transcript: <input type=button id="showKeyPhrases" value="Show Key Phrases"
                         class=btn style="width: 140px"></input> </div>
                 <div class="transcript-text" name="transcript-text-entities" id="transcript-text-entities" style="border: 1px solid; margin:5px;"></div>
-            </div>
-            <div id="translation">
-                <div>Real-time Customer Translation:</div>
-                <div class="translated-text" name="translated-text" id="translated-text" style="border: 1px solid; margin:5px;"></div>
-            </div>
-            <div>
-                <div id="hiddenAttributes">
-                    <input type=button id="showAttributes" value="Show Contact Attributes"></input>
-                    <select name="translateLang" id="translateLang">
-
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="ko">Korean</option>
-                        <option value="ar">Arabic</option>
-                    </select>
-                </div>
-                <div id="visibleAttributes" style="display: none">
-                    <input type=button id="hideAttributes" value="Hide Contact Attributes"></input>
-                    <table id="attributes" style="width:100%;border:1px;"></table>
-                </div>
             </div>
 
         </form>
@@ -953,53 +871,6 @@
         </script>
 
     </section>
-
-    <section id="section-agent">
-        <script>
-            var text = '{ "agentAssist" : [' +
-                '{ "keyPhrase":"customer for two years" , "action":"Loyalty Program", "description":"Investigate customer loyalty offers" },' +
-                '{ "keyPhrase":"Cancel My Service" , "action":"Offer Discount", "description":"Provide 30% discount for a year" },' +
-                '{ "keyPhrase":"competitors website" , "action":"Competitive Advantage", "description":"Offer 25% discount for one year" },' +
-                '{ "keyPhrase":"your competitors website" , "action":"Competitive Advantage", "description":"Offer 25% discount for one year" },' +
-                '{ "keyPhrase":"match their price" , "action":"Price Match", "description":"Open price match details" },' +
-                '{ "keyPhrase":"match the price" , "action":"Price Match", "description":"Open price match details" },' +
-                '{ "keyPhrase":"New Service" , "action":"Offer Promo", "description":"Give 5% discount" },' +
-                '{ "keyPhrase":"the promotional pricing" , "action":"Promotion Extention", "description":"Renew promotional discount" } ]}';
-            var agentAction = JSON.parse(text);
-            console.log(agentAction);
-
-            function getAgentAction(inputString, keyPhrase) {
-                console.log(inputString);
-                var action = '';
-                agentAction.agentAssist.forEach(function (element) {
-                    var s1 = element.keyPhrase.toUpperCase();
-                    var s2 = inputString.toUpperCase();
-
-                    if (s2.search(s1) > -1) {
-                        var patt = new RegExp(keyPhrase, "i");
-                        var result = s1.match(patt);
-                        if (result != null) {
-                            $("#section-agent").show("slide");
-                            $('#agentActionLabel').prepend('<p class="suggestedActions">' + element.description + '</p>');
-                            action = element.action;
-                        }
-                    }
-
-                });
-                return action;
-            }
-        </script>
-        <header>
-            <h1>Suggested Actions:</h1>
-        </header>
-        <div id="agentActionWrapper">
-            <div id="agentActionLabel"></div>
-        </div>
-    </section>
-
-
-
-
 </body>
 
 </html>
